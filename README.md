@@ -37,7 +37,7 @@ Everything lives in a **single `index.html` file** — no build tools, no framew
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/handy-ai.git
+git clone https://github.com/oseyosman/handy-ai.git
 cd handy-ai
 
 # Open directly in your browser
