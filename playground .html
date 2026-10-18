@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d12">
+<title>Digital Playground — Interactive Physics</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #080b10; --panel: rgba(17,22,30,.82); --panel2: rgba(24,31,41,.82);
+    --line: rgba(208,226,245,.12); --text: #eef4fb; --muted: #8f9eaf;
+    --accent: #7bd8ff; --accent2: #b4f0ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { user-select:none; -webkit-user-select:none; }
+  #stage { position:fixed; inset:0; background:
+    radial-gradient(ellipse at 50% 45%, rgba(30,49,64,.28), transparent 58%),
+    linear-gradient(135deg, #0a0d12, #080b10 55%, #0b1016); }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  #grain { pointer-events:none; position:absolute; inset:0; opacity:.12; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E"); }
+  .topbar { position:absolute; top:0; left:0; right:0; padding:22px 26px; display:flex; align-items:center; justify-content:space-between; pointer-events:none; gap:12px; }
+  .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+  .brandmark { width:36px; height:36px; border:1px solid rgba(153,224,255,.4); border-radius:12px; display:grid; place-items:center; background:linear-gradient(145deg,rgba(92,200,255,.18),rgba(92,200,255,.02)); box-shadow:0 0 30px rgba(75,190,255,.1), inset 0 0 18px rgba(75,190,255,.08); }
+  .brandmark svg { width:22px; height:22px; }
+  .brandname { font-size:14px; font-weight:760; letter-spacing:.16em; }
+  .brandtag { font-size:10px; color:var(--muted); letter-spacing:.16em; margin-top:3px; text-transform:uppercase; }
+  .top-actions { display:flex; gap:8px; pointer-events:auto; }
+  button, select, input { font:inherit; }
+  button { color:var(--text); cursor:pointer; border:1px solid var(--line); background:rgba(21,27,36,.8); border-radius:11px; padding:10px 13px; transition:background .18s,border-color .18s,transform .18s; }
+  button:hover { background:rgba(43,55,70,.9); border-color:rgba(178,222,250,.3); }
+  button:active { transform:scale(.98); }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .iconbtn { width:39px; height:39px; padding:0; display:grid; place-items:center; }
+  .iconbtn svg { width:17px; height:17px; }
+  .pill { border:1px solid var(--line); background:rgba(16,22,29,.75); border-radius:999px; padding:8px 11px; font-size:11px; color:#b7c5d4; display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .dot { width:6px; height:6px; border-radius:50%; background:#6ee7b7; box-shadow:0 0 12px #6ee7b7; }
+  .layout { position:absolute; inset:82px 22px 22px; display:flex; justify-content:space-between; align-items:stretch; pointer-events:none; }
+  .panel { pointer-events:auto; background:linear-gradient(160deg,rgba(20,26,35,.9),rgba(12,17,24,.82)); border:1px solid var(--line); box-shadow:0 22px 70px rgba(0,0,0,.22); backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); border-radius:18px; }
+  .leftpanel { width:252px; padding:17px; align-self:flex-start; max-height:100%; overflow:auto; scrollbar-width:thin; scrollbar-color:#334252 transparent; }
+  .rightpanel { width:246px; padding:17px; align-self:flex-start; max-height:100%; overflow:auto; scrollbar-width:thin; scrollbar-color:#334252 transparent; }
+  .eyebrow { font-size:10px; color:#8092a4; letter-spacing:.17em; font-weight:700; text-transform:uppercase; }
+  .section-title { font-size:13px; font-weight:700; margin:8px 0 12px; }
+  .element-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .element { min-height:76px; text-align:left; padding:11px 10px; display:flex; flex-direction:column; justify-content:space-between; gap:9px; background:rgba(255,255,255,.025); border-color:rgba(206,226,244,.1); }
+  .element .emoji { font-size:20px; line-height:1; filter:drop-shadow(0 0 8px currentColor); }
+  .element .elname { font-size:11px; color:#c3cfdb; font-weight:650; }
+  .element.active { border-color:rgba(123,216,255,.7); background:linear-gradient(145deg,rgba(69,169,219,.18),rgba(69,169,219,.04)); box-shadow:inset 0 0 0 1px rgba(123,216,255,.12),0 0 24px rgba(55,167,220,.08); }
+  .element.active .elname { color:#effaff; }
+  .divider { height:1px; background:var(--line); margin:17px 0; }
+  .setting { margin:14px 0 16px; }
+  .setting-head { display:flex; align-items:center; justify-content:space-between; font-size:11px; color:#c2cfdb; margin-bottom:10px; }
+  .setting-head output { color:var(--accent2); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:#7bd8ff; cursor:pointer; height:4px; }
+  .hint { font-size:10px; line-height:1.55; color:#8292a3; }
+  .control-row { display:flex; gap:8px; }
+  .control-row button { flex:1; font-size:11px; padding:10px 8px; }
+  .primary { background:linear-gradient(135deg,#9be8ff,#65bfe9); color:#07121b; border-color:transparent; font-weight:750; }
+  .primary:hover { background:linear-gradient(135deg,#c0f1ff,#79d0f4); }
+  .wide { width:100%; }
+  .mini-label { font-size:10px; color:#8191a2; margin:0 0 7px; }
+  .toggleline { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:12px 0; font-size:11px; color:#c2cfdb; }
+  .switch { appearance:none; width:31px; height:18px; border-radius:20px; background:#303b48; border:1px solid #465363; position:relative; cursor:pointer; transition:.2s; flex:none; }
+  .switch:before { content:""; position:absolute; width:12px; height:12px; left:2px; top:2px; background:#9aa9b8; border-radius:50%; transition:.2s; }
+  .switch:checked { background:#2c829e; border-color:#69cce9; }
+  .switch:checked:before { left:15px; background:#e9fbff; }
+  .stage-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .welcome { text-align:center; width:min(430px,80vw); transition:opacity .5s,transform .5s; transform:translateY(0); }
+  .welcome.hidden { opacity:0; transform:translateY(12px); }
+  .welcome .orb { width:66px; height:66px; border-radius:50%; margin:0 auto 20px; border:1px solid rgba(145,222,255,.4); background:radial-gradient(circle at 34% 27%,rgba(201,246,255,.9),rgba(77,176,220,.25) 18%,rgba(15,50,71,.12) 60%,transparent 72%); box-shadow:0 0 48px rgba(68,188,238,.17),inset 0 0 24px rgba(108,209,255,.15); }
+  .welcome h1 { font-size:clamp(28px,4vw,46px); line-height:1.08; letter-spacing:-.045em; margin:0; font-weight:650; }
+  .welcome p { color:#91a0b1; font-size:13px; line-height:1.65; margin:14px auto 21px; max-width:320px; }
+  .welcome button { padding:12px 20px; }
+  .bottom-hud { position:absolute; bottom:23px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; pointer-events:auto; }
+  .hudbtn { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; background:rgba(18,24,32,.84); backdrop-filter:blur(15px); }
+  .hudbtn svg { width:17px; height:17px; }
+  .hudbtn.active { color:#07121b; background:#9be8ff; border-color:#9be8ff; }
+  .statusline { position:absolute; bottom:28px; right:25px; display:flex; align-items:center; gap:8px; font-size:10px; color:#8191a2; pointer-events:none; }
+  .statusline strong { color:#c9d7e5; font-weight:600; }
+  .cursor-ring { position:absolute; width:32px; height:32px; border:1px solid rgba(186,238,255,.8); border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; opacity:0; box-shadow:0 0 20px rgba(96,205,255,.25), inset 0 0 12px rgba(96,205,255,.12); }
+  .toast { position:absolute; top:82px; left:50%; transform:translate(-50%,-10px); background:rgba(16,23,31,.92); border:1px solid var(--line); color:#cbd8e5; padding:10px 14px; border-radius:12px; font-size:11px; opacity:0; transition:.25s; pointer-events:none; z-index:10; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  .cam-preview { width:100%; aspect-ratio:16/10; background:#090d12; border:1px solid var(--line); border-radius:12px; overflow:hidden; position:relative; display:none; margin:10px 0; }
+  .cam-preview.visible { display:block; }
+  .cam-preview video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); opacity:.78; }
+  .cam-preview .cam-label { position:absolute; bottom:7px; left:8px; font-size:9px; background:rgba(0,0,0,.55); padding:4px 6px; border-radius:5px; color:#d6e5f2; }
+  #cameraBtn { font-size:11px; }
+  .footer-note { margin-top:12px; font-size:9px; line-height:1.55; color:#718295; }
+  @media (max-width:760px) {
+    .topbar { padding:14px 14px; }
+    .brandmark { width:32px;height:32px; }
+    .brandname { font-size:12px; }
+    .brandtag { font-size:9px; }
+    .top-actions .pill { display:none; }
+    .layout { inset:68px 10px 76px; align-items:flex-end; }
+    .leftpanel { width:min(205px,55vw); padding:12px; max-height:65%; }
+    .rightpanel { width:min(194px,50vw); padding:12px; max-height:65%; }
+    .element-grid { gap:6px; }
+    .element { min-height:61px; padding:8px; }
+    .element .emoji { font-size:17px; }
+    .element .elname { font-size:10px; }
+    .section-title { font-size:12px; }
+    .rightpanel .divider { margin:12px 0; }
+    .setting { margin:11px 0 12px; }
+    .bottom-hud { bottom:15px; }
+    .statusline { display:none; }
+    .welcome { transform:translateY(-30px); }
+    .welcome.hidden { transform:translateY(-18px); }
+  }
+  @media (max-width:440px) {
+    .layout { inset:65px 8px 75px; }
+    .leftpanel { width:48%; }
+    .rightpanel { width:48%; }
+    .element-grid { grid-template-columns:1fr 1fr; }
+    .pill { font-size:9px; }
+    .top-actions button { padding:8px; }
+    .leftpanel, .rightpanel { max-height:58%; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="world" aria-label="Interactive particle simulation"></canvas>
+  <div id="grain"></div>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.8c2.4 3.1 6.3 6.3 6.3 10.4A6.3 6.3 0 1 1 5.7 13.2C5.7 9.1 9.6 5.9 12 2.8Z" stroke="#a8eaff" stroke-width="1.4"/><path d="M8.5 14.3c.1 1.9 1.3 3.1 3.1 3.4" stroke="#e0f8ff" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+      <div><div class="brandname">DIGITAL PLAYGROUND</div><div class="brandtag">A little physics, a lot of wonder</div></div>
+    </div>
+    <div class="top-actions">
+      <div class="pill"><span class="dot"></span><span id="engineStatus">SIMULATION READY</span></div>
+      <button class="iconbtn" id="fullscreenBtn" title="Toggle fullscreen" aria-label="Toggle fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg></button>
+    </div>
+  </div>
+
+  <div class="stage-center">
+    <div class="welcome" id="welcome">
+      <div class="orb"></div>
+      <h1>Make a little<br>beautiful chaos.</h1>
+      <p>Draw with elements. Bend the rules of physics. See what happens when you let go.</p>
+      <button class="primary" id="startBtn">Start playing <span aria-hidden="true">↗</span></button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="panel leftpanel">
+      <div class="eyebrow">01 / Elements</div>
+      <div class="section-title">Choose your material</div>
+      <div class="element-grid" id="elementGrid">
+        <button class="element active" data-element="water"><span class="emoji">💧</span><span class="elname">Water</span></button>
+        <button class="element" data-element="fire"><span class="emoji">🔥</span><span class="elname">Fire</span></button>
+        <button class="element" data-element="smoke"><span class="emoji">☁️</span><span class="elname">Smoke</span></button>
+        <button class="element" data-element="spark"><span class="emoji">✨</span><span class="elname">Sparks</span></button>
+        <button class="element" data-element="plasma"><span class="emoji">🫧</span><span class="elname">Plasma</span></button>
+        <button class="element" data-element="gravity"><span class="emoji">🌀</span><span class="elname">Gravity</span></button>
+      </div>
+      <div class="divider"></div>
+      <div class="eyebrow">02 / Forces</div>
+      <div class="section-title">Shape the world</div>
+      <div class="toggleline"><span>Gravity</span><input class="switch" id="gravityToggle" type="checkbox" checked aria-label="Enable gravity"></div>
+      <div class="toggleline"><span>Fluid turbulence</span><input class="switch" id="turbulenceToggle" type="checkbox" checked aria-label="Enable turbulence"></div>
+      <div class="toggleline"><span>Particle trails</span><input class="switch" id="trailsToggle" type="checkbox" checked aria-label="Enable trails"></div>
+      <div class="hint">Tip: drag slowly to paint. Move quickly to throw particles into the scene.</div>
+    </aside>
+
+    <aside class="panel rightpanel">
+      <div class="eyebrow">03 / Lab controls</div>
+      <div class="section-title">Tune the elements</div>
+      <div class="setting"><div class="setting-head"><label for="brush">Brush size</label><output id="brushOut">34 px</output></div><input id="brush" type="range" min="8" max="90" value="34"></div>
+      <div class="setting"><div class="setting-head"><label for="intensity">Emission</label><output id="intensityOut">65%</output></div><input id="intensity" type="range" min="10" max="100" value="65"></div>
+      <div class="setting"><div class="setting-head"><label for="force">Force</label><output id="forceOut">50%</output></div><input id="force" type="range" min="0" max="100" value="50"></div>
+      <div class="setting"><div class="setting-head"><label for="lifetime">Particle life</label><output id="lifeOut">7.0 s</output></div><input id="lifetime" type="range" min="2" max="14" value="7"></div>
+      <div class="divider"></div>
+      <div class="eyebrow">04 / Hands-free</div>
+      <div class="section-title">Webcam gestures</div>
+      <button class="wide" id="cameraBtn">Enable hand tracking</button>
+      <div class="cam-preview" id="camPreview"><video id="cameraVideo" playsinline muted></video><div class="cam-label" id="camLabel">Waiting for hand…</div></div>
+      <div class="hint">Allow camera access, then move your index finger to paint. Pinch thumb + index finger to pause painting. Camera processing runs in your browser.</div>
+      <div class="divider"></div>
+      <div class="control-row"><button id="pauseBtn">Ⅱ Pause</button><button id="clearBtn">↺ Clear</button></div>
+      <div class="footer-note">A real-time, fluid-like particle playground. This is a visual simulation, not a scientific fluid solver.</div>
+    </aside>
+  </div>
+
+  <div class="bottom-hud">
+    <button class="hudbtn active" id="paintBtn" title="Paint mode" aria-label="Paint mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m4 20 4.5-1 10.7-10.7a2.1 2.1 0 0 0-3-3L5.5 16 4 20Z"/><path d="m14.8 6.2 3 3"/></svg></button>
+    <button class="hudbtn" id="attractBtn" title="Attract particles" aria-label="Attract particles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></button>
+    <button class="hudbtn" id="repelBtn" title="Repel particles" aria-label="Repel particles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5M5 5l3.5 3.5M15.5 15.5 19 19M19 5l-3.5 3.5M8.5 15.5 5 19"/></svg></button>
+    <button class="hudbtn" id="burstBtn" title="Particle burst" aria-label="Particle burst"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 2 1.7 6.3L20 5l-3.3 6.3L23 13l-6.3 1.7L20 21l-6.3-3.3L12 24l-1.7-6.3L4 21l3.3-6.3L1 13l6.3-1.7L4 5l6.3 3.3L12 2Z" transform="translate(0 -1) scale(1 .95)"/></svg></button>
+  </div>
+  <div class="statusline"><span id="fps">60 FPS</span><span>·</span><strong id="particleCount">0 particles</strong><span>·</span><span id="modeLabel">PAINT MODE</span></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("world");
+  const ctx = canvas.getContext("2d", { alpha: true });
+  const welcome = document.getElementById("welcome");
+  const cursorRing = document.getElementById("cursorRing");
+  const toastEl = document.getElementById("toast");
+  const statusEl = document.getElementById("engineStatus");
+  const video = document.getElementById("cameraVideo");
+  const camPreview = document.getElementById("camPreview");
+  const camLabel = document.getElementById("camLabel");
+
+  const state = {
+    element: "water", mode: "paint", paused: false, started: false,
+    gravity: true, turbulence: true, trails: true,
+    brush: 34, intensity: .65, force: .5, lifetime: 7,
+    particles: [], pointer: {x: innerWidth/2, y: innerHeight/2, down:false, active:false, px:innerWidth/2, py:innerHeight/2, vx:0, vy:0},
+    maxParticles: Math.min(2400, Math.max(900, Math.floor((innerWidth*innerHeight)/500))),
+    dpr: 1, frame: 0, lastTime: performance.now(), fps: 60,
+    cameraOn: false, handActive: false, pinch: false, handPos: null,
+    lastEmit: 0, lastBurst: 0
+  };
+  const palettes = {
+    water: ["#7be6ff","#3baee9","#b5f7ff","#4d83e7"],
+    fire: ["#ffdb78","#ff9a43","#ff593c","#fff1b0"],
+    smoke: ["#c0c9d6","#8c9bab","#e1e8f0","#65798d"],
+    spark: ["#fff5b7","#8ceeff","#e5a5ff","#ffffff"],
+    plasma: ["#c1a1ff","#8c70ff","#73f5ff","#f5a7ff"],
+    gravity: ["#9a8cff","#c9b6ff","#5ce2ff","#f3f1ff"]
+  };
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+  const pick = arr => arr[(Math.random()*arr.length)|0];
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.65);
+    state.dpr = dpr;
+    canvas.width = Math.floor(innerWidth*dpr);
+    canvas.height = Math.floor(innerHeight*dpr);
+    canvas.style.width = innerWidth+"px";
+    canvas.style.height = innerHeight+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    state.maxParticles = Math.min(2400, Math.max(900, Math.floor((innerWidth*innerHeight)/500)));
+  }
+  window.addEventListener("resize", resize, {passive:true});
+  resize();
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add("show");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toastEl.classList.remove("show"), 2100);
+  }
+  function startExperience() {
+    state.started = true;
+    welcome.classList.add("hidden");
+    statusEl.textContent = "SIMULATION ACTIVE";
+    if (!state.particles.length) {
+      for (let i=0; i<120; i++) {
+        const x = innerWidth*rand(.2,.8), y = innerHeight*rand(.24,.78);
+        spawn("water",x,y,1,rand(0,Math.PI*2),true);
+      }
+    }
+  }
+  document.getElementById("startBtn").addEventListener("click", startExperience);
+
+  function setElement(element) {
+    state.element = element;
+    document.querySelectorAll(".element").forEach(btn => btn.classList.toggle("active",btn.dataset.element===element));
+    showToast(element.charAt(0).toUpperCase()+element.slice(1)+" selected");
+    if (!state.started) startExperience();
+  }
+  document.querySelectorAll(".element").forEach(btn => btn.addEventListener("click",()=>setElement(btn.dataset.element)));
+
+  function makeParticle(type,x,y,angle,initial=false) {
+    const speed = initial ? rand(.1,1.4) : rand(.5,2.7) * (0.4 + state.force*1.7);
+    let vx = Math.cos(angle)*speed + (state.pointer.vx||0)*.12;
+    let vy = Math.sin(angle)*speed + (state.pointer.vy||0)*.12;
+    const size = type==="smoke" ? rand(5,13) : type==="fire" ? rand(2,5.5) : type==="water" ? rand(1.5,4.2) : type==="gravity" ? rand(1.5,4.5) : rand(1.4,3.8);
+    return {type,x,y,px:x,py:y,vx,vy,size,color:pick(palettes[type]||palettes.water),life:rand(.55,1)*state.lifetime,maxLife:state.lifetime,phase:rand(0,Math.PI*2),seed:Math.random()*1000,alpha:rand(.6,1),drag: type==="smoke"?.988:type==="fire"?.984:type==="water"?.993:.989};
+  }
+  function spawn(type,x,y,count=1,angle=null,initial=false) {
+    if (state.particles.length >= state.maxParticles) {
+      state.particles.splice(0,Math.max(1,Math.floor(count)));
+      if (state.particles.length >= state.maxParticles) return;
+    }
+    count = Math.min(count, state.maxParticles-state.particles.length);
+    for (let i=0;i<count;i++) {
+      const a = angle===null ? rand(0,Math.PI*2) : angle + rand(-.8,.8);
+      const spread = initial ? rand(0,45) : state.brush*Math.sqrt(Math.random())*.42;
+      const p = makeParticle(type,x+Math.cos(a)*spread,y+Math.sin(a)*spread,a,initial);
+      if (type==="fire") { p.vy -= rand(.6,2.8); p.vx += rand(-.8,.8); }
+      if (type==="smoke") { p.vy -= rand(.1,1.2); p.size *= 1.25; }
+      if (type==="water") { p.vy += rand(-.3,.8); }
+      if (type==="spark") { p.vx *= 2.8; p.vy *= 2.8; p.life *= .6; }
+      if (type==="plasma") { p.vx *= 1.7; p.vy *= 1.7; }
+      if (type==="gravity") { p.vx *= .35; p.vy *= .35; p.size *= .7; }
+      state.particles.push(p);
+    }
+  }
+  function emitAt(x,y,vx=0,vy=0) {
+    const count = Math.max(1,Math.round(state.intensity*(state.element==="smoke"?2.2:3.4)));
+    if (state.element==="gravity") {
+      applyForce(x,y,"attract",1.5);
+      spawn("gravity",x,y,Math.max(1,count-1));
+    } else {
+      spawn(state.element,x,y,count);
+    }
+    state.pointer.vx = vx; state.pointer.vy = vy;
+  }
+
+  function applyForce(x,y,kind,strength=1) {
+    const radius = state.brush*3.6;
+    for (const p of state.particles) {
+      const dx=x-p.x, dy=y-p.y, d2=dx*dx+dy*dy;
+      if (d2<radius*radius && d2>1) {
+        const d=Math.sqrt(d2), falloff=(1-d/radius);
+        const f=(state.force*1.5+.15)*strength*falloff;
+        const sign=kind==="attract"?1:-1;
+        p.vx += dx/d*f*sign;
+        p.vy += dy/d*f*sign;
+      }
+    }
+  }
+
+  function drawParticle(p) {
+    const lifeRatio = clamp(p.life/p.maxLife,0,1);
+    let alpha = p.alpha;
+    let radius = p.size;
+    if (p.type==="fire") { alpha *= Math.min(1,lifeRatio*2.2); radius *= .55+lifeRatio*.65; }
+    else if (p.type==="smoke") { alpha *= Math.min(1,lifeRatio*2)*.24; radius *= 1.1+(1-lifeRatio)*2.2; }
+    else if (p.type==="spark") alpha *= Math.min(1,lifeRatio*3);
+    else alpha *= Math.min(1,lifeRatio*3);
+    ctx.globalAlpha = alpha;
+    if (p.type==="smoke") {
+      const grad=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,radius*2.4);
+      grad.addColorStop(0,p.color+"55"); grad.addColorStop(.55,p.color+"22"); grad.addColorStop(1,p.color+"00");
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(p.x,p.y,radius*2.4,0,Math.PI*2); ctx.fill();
+    } else if (p.type==="water") {
+      ctx.strokeStyle=p.color; ctx.lineWidth=Math.max(1,radius*.9); ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(p.x-p.vx*1.8,p.y-p.vy*1.8); ctx.lineTo(p.x,p.y); ctx.stroke();
+      ctx.globalAlpha=alpha*.28; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,radius*2.4,0,Math.PI*2); ctx.fill();
+    } else if (p.type==="fire" || p.type==="plasma" || p.type==="gravity") {
+      ctx.shadowBlur=p.type==="fire"?radius*5:radius*4; ctx.shadowColor=p.color; ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+    } else if (p.type==="spark") {
+      ctx.strokeStyle=p.color; ctx.lineWidth=Math.max(.8,radius*.7); ctx.shadowBlur=radius*3; ctx.shadowColor=p.color;
+      ctx.beginPath(); ctx.moveTo(p.x-p.vx*2,p.y-p.vy*2); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.shadowBlur=0;
+    }
+    ctx.globalAlpha=1;
+  }
+
+  function step(dt) {
+    const gravity = state.gravity ? .035 : 0;
+    const t = performance.now()*.001;
+    for (let i=state.particles.length-1;i>=0;i--) {
+      const p=state.particles[i];
+      p.px=p.x; p.py=p.y;
+      p.phase += dt*(1+p.seed%2);
+      if (state.turbulence) {
+        const n = Math.sin(p.y*.008+t*1.2+p.seed)*.022 + Math.cos(p.x*.006-t*.8+p.seed*.3)*.02;
+        p.vx += n*1.8;
+        p.vy += Math.sin(p.x*.008+t+p.seed*.4)*.018;
+      }
+      if (p.type==="fire") { p.vy -= .095; p.vx += Math.sin(p.phase*1.7+p.seed)*.012; p.life -= dt*1.25; }
+      else if (p.type==="smoke") { p.vy -= .018; p.vx += Math.sin(p.phase+p.seed)*.009; p.life -= dt*.45; }
+      else if (p.type==="water") { p.vy += gravity; p.life -= dt*.42; }
+      else if (p.type==="spark") { p.vy += gravity*.45; p.vx *= .997; p.life -= dt*1.5; }
+      else if (p.type==="plasma") { p.vx += Math.sin(p.phase*2+p.seed)*.025; p.vy += Math.cos(p.phase*1.4+p.seed)*.025; p.life -= dt*.6; }
+      else if (p.type==="gravity") { p.vx += Math.sin(p.phase+p.seed)*.01; p.vy += Math.cos(p.phase+p.seed)*.01; p.life -= dt*.55; }
+      p.vx *= p.drag; p.vy *= p.drag;
+      p.x += p.vx*(dt*60); p.y += p.vy*(dt*60);
+      // Soft bounds keep particles in view while allowing natural motion.
+      if (p.x<0) { p.x=0; p.vx=Math.abs(p.vx)*.62; }
+      if (p.x>innerWidth) { p.x=innerWidth; p.vx=-Math.abs(p.vx)*.62; }
+      if (p.y<0) { p.y=0; p.vy=Math.abs(p.vy)*.55; }
+      if (p.y>innerHeight) {
+        p.y=innerHeight;
+        if (p.type==="water" || p.type==="spark") { p.vy=-Math.abs(p.vy)*.42; p.vx*=.9; }
+        else { p.vy*=-.25; p.vx*=.96; }
+        p.life -= dt*.4;
+      }
+      if (p.life<=0 || !Number.isFinite(p.x+p.y+p.vx+p.vy)) state.particles.splice(i,1);
+    }
+    // Local cohesion creates a soft, liquid-like current without a costly all-pairs solver.
+    if (state.turbulence && state.particles.length>20 && state.frame%3===0) {
+      const stride=3, ps=state.particles;
+      for (let i=0;i<ps.length;i+=stride) {
+        const p=ps[i];
+        for (let j=i+stride;j<Math.min(ps.length,i+stride*5);j+=stride) {
+          const q=ps[j]; if (p.type!==q.type) continue;
+          const dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
+          if (d2>20 && d2<state.brush*state.brush*.7) {
+            const f=.00055*(1-Math.sqrt(d2)/(state.brush*.84));
+            p.vx+=dx*f; p.vy+=dy*f; q.vx-=dx*f; q.vy-=dy*f;
+          }
+        }
+      }
+    }
+  }
+
+  function render(now) {
+    requestAnimationFrame(render);
+    const dt=Math.min(.033,Math.max(.001,(now-state.lastTime)/1000||.016));
+    state.lastTime=now; state.frame++;
+    if (!state.paused) step(dt);
+    if (state.trails) {
+      ctx.fillStyle="rgba(8,11,16,0.22)";
+      ctx.fillRect(0,0,innerWidth,innerHeight);
+    } else {
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+    }
+    // faint ambient halo around active pointer
+    if (state.pointer.active && state.pointer.down && state.mode==="paint") {
+      const g=ctx.createRadialGradient(state.pointer.x,state.pointer.y,0,state.pointer.x,state.pointer.y,state.brush*2.2);
+      g.addColorStop(0,"rgba(114,215,255,.07)"); g.addColorStop(1,"rgba(114,215,255,0)");
+      ctx.fillStyle=g; ctx.fillRect(state.pointer.x-state.brush*2.2,state.pointer.y-state.brush*2.2,state.brush*4.4,state.brush*4.4);
+    }
+    for (const p of state.particles) drawParticle(p);
+    if (state.pointer.active && state.pointer.down && state.mode!=="paint") {
+      ctx.beginPath(); ctx.arc(state.pointer.x,state.pointer.y,state.brush*1.5,0,Math.PI*2);
+      ctx.strokeStyle=state.mode==="attract"?"rgba(117,220,255,.42)":"rgba(255,155,140,.42)"; ctx.lineWidth=1; ctx.stroke();
+    }
+    if (state.frame%12===0) {
+      const fpsNow=1/dt; state.fps=state.fps*.8+fpsNow*.2;
+      document.getElementById("fps").textContent=Math.round(state.fps)+" FPS";
+      document.getElementById("particleCount").textContent=state.particles.length+" particles";
+    }
+  }
+  requestAnimationFrame(render);
+
+  function pointerMove(e) {
+    const p=state.pointer, rect=canvas.getBoundingClientRect();
+    const x=e.clientX-rect.left, y=e.clientY-rect.top;
+    p.px=p.x; p.py=p.y; p.x=x; p.y=y;
+    p.vx=x-p.px; p.vy=y-p.py; p.active=true;
+    cursorRing.style.left=x+"px"; cursorRing.style.top=y+"px"; cursorRing.style.opacity="1";
+    if (p.down && !state.paused) {
+      if (state.mode==="paint") emitAt(x,y,p.vx,p.vy);
+      else applyForce(x,y,state.mode==="attract"?"attract":"repel",1);
+      startExperience();
+    }
+  }
+  canvas.addEventListener("pointerdown", e=>{
+    if (e.button!==undefined && e.button!==0) return;
+    startExperience();
+    canvas.setPointerCapture?.(e.pointerId);
+    state.pointer.down=true;
+    pointerMove(e);
+    if (state.mode==="paint") emitAt(state.pointer.x,state.pointer.y);
+  });
+  canvas.addEventListener("pointermove", pointerMove, {passive:true});
+  const release = () => { state.pointer.down=false; };
+  canvas.addEventListener("pointerup",release); canvas.addEventListener("pointercancel",release); canvas.addEventListener("pointerleave",()=>{ if (!state.cameraOn) cursorRing.style.opacity="0"; });
+  canvas.addEventListener("contextmenu",e=>e.preventDefault());
+
+  function setMode(mode) {
+    state.mode=mode;
+    document.querySelectorAll(".hudbtn").forEach(b=>b.classList.remove("active"));
+    const id=mode==="paint"?"paintBtn":mode==="attract"?"attractBtn":"repelBtn";
+    document.getElementById(id).classList.add("active");
+    document.getElementById("modeLabel").textContent=mode.toUpperCase()+" MODE";
+    showToast(mode==="paint"?"Paint mode":mode==="attract"?"Attract mode":"Repel mode");
+  }
+  document.getElementById("paintBtn").addEventListener("click",()=>setMode("paint"));
+  document.getElementById("attractBtn").addEventListener("click",()=>setMode("attract"));
+  document.getElementById("repelBtn").addEventListener("click",()=>setMode("repel"));
+  document.getElementById("burstBtn").addEventListener("click",()=>{
+    startExperience();
+    const x=state.pointer.active?state.pointer.x:innerWidth/2, y=state.pointer.active?state.pointer.y:innerHeight/2;
+    const type=state.element==="gravity"?"plasma":state.element;
+    const count=Math.min(170,Math.round(50+state.intensity*120));
+    for (let i=0;i<count;i++) spawn(type,x,y,1,rand(0,Math.PI*2));
+    showToast("Particle burst released");
+  });
+  document.getElementById("pauseBtn").addEventListener("click",()=>{
+    state.paused=!state.paused;
+    document.getElementById("pauseBtn").textContent=state.paused?"▶ Resume":"Ⅱ Pause";
+    statusEl.textContent=state.paused?"SIMULATION PAUSED":"SIMULATION ACTIVE";
+  });
+  document.getElementById("clearBtn").addEventListener("click",()=>{
+    state.particles.length=0;
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    showToast("Canvas cleared");
+  });
+  document.getElementById("gravityToggle").addEventListener("change",e=>state.gravity=e.target.checked);
+  document.getElementById("turbulenceToggle").addEventListener("change",e=>state.turbulence=e.target.checked);
+  document.getElementById("trailsToggle").addEventListener("change",e=>state.trails=e.target.checked);
+  function bindRange(id,key,format,scale=1) {
+    const input=document.getElementById(id), output=document.getElementById({"brush":"brushOut","intensity":"intensityOut","force":"forceOut","lifetime":"lifeOut"}[id]);
+    const update=()=>{state[key]=Number(input.value)*scale; output.textContent=format(Number(input.value));};
+    input.addEventListener("input",update); update();
+  }
+  bindRange("brush","brush",v=>v+" px");
+  bindRange("intensity","intensity",v=>v+"%",.01);
+  bindRange("force","force",v=>v+"%",.01);
+  bindRange("lifetime","lifetime",v=>(v/1).toFixed(1)+" s");
+
+  document.getElementById("fullscreenBtn").addEventListener("click",async()=>{
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch(e) { showToast("Fullscreen is not available in this browser"); }
+  });
+
+  // Optional MediaPipe Hands webcam mode. Camera stays off until explicitly enabled.
+  let handsInstance=null, cameraStream=null, cameraLoop=null, mediapipeLoading=false;
+  async function enableCamera() {
+    if (state.cameraOn) { disableCamera(); return; }
+    if (!navigator.mediaDevices?.getUserMedia) { showToast("Camera needs HTTPS or localhost"); return; }
+    if (mediapipeLoading) return;
+    mediapipeLoading=true;
+    const button=document.getElementById("cameraBtn");
+    button.textContent="Loading hand tracking…";
+    try {
+      await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
+      if (!window.Hands || !window.Camera) throw new Error("MediaPipe could not load");
+      handsInstance=new window.Hands({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+      handsInstance.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.55,minTrackingConfidence:.5});
+      handsInstance.onResults(onHandResults);
+      cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+      video.srcObject=cameraStream;
+      await video.play();
+      state.cameraOn=true; camPreview.classList.add("visible");
+      button.textContent="Disable hand tracking";
+      camLabel.textContent="Show your hand to begin";
+      statusEl.textContent="HAND TRACKING READY";
+      showToast("Hand tracking enabled");
+      cameraLoop=new window.Camera(video,{onFrame:async()=>{if(handsInstance && state.cameraOn) await handsInstance.send({image:video});},width:640,height:480});
+      cameraLoop.start();
+    } catch(err) {
+      console.error(err);
+      disableCamera();
+      showToast(err?.name==="NotAllowedError"?"Camera permission was denied":"Could not start camera — use HTTPS or localhost");
+    } finally { mediapipeLoading=false; }
+  }
+  function loadScript(src) {
+    return new Promise((resolve,reject)=>{
+      const existing=[...document.scripts].find(s=>s.src===src);
+      if (existing) { if (existing.dataset.loaded==="true") resolve(); else {existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",reject,{once:true});} return; }
+      const s=document.createElement("script"); s.src=src; s.async=true;
+      s.onload=()=>{s.dataset.loaded="true";resolve();}; s.onerror=()=>reject(new Error("Unable to load "+src)); document.head.appendChild(s);
+    });
+  }
+  function onHandResults(results) {
+    const lm=results.multiHandLandmarks?.[0];
+    if (!lm) { state.handActive=false; state.pointer.down=false; camLabel.textContent="No hand detected"; return; }
+    const tip=lm[8], thumb=lm[4], wrist=lm[0];
+    // Mirror the x-coordinate to match the mirrored camera preview.
+    const x=(1-tip.x)*innerWidth, y=tip.y*innerHeight;
+    const distance=Math.hypot((tip.x-thumb.x)*innerWidth,(tip.y-thumb.y)*innerHeight);
+    const pinching=distance<Math.min(58,state.brush*1.45);
+    state.handActive=true; state.handPos={x,y}; state.pointer.px=state.pointer.x; state.pointer.py=state.pointer.y;
+    state.pointer.x=x; state.pointer.y=y;
+    state.pointer.vx=state.pointer.x-state.pointer.px; state.pointer.vy=state.pointer.y-state.pointer.py;
+    state.pointer.active=true;
+    cursorRing.style.left=x+"px"; cursorRing.style.top=y+"px"; cursorRing.style.opacity="1";
+    camLabel.textContent=pinching?"Pinch detected · paused":"Index finger · painting";
+    // Pinch is a clutch: pinch to stop painting, release to paint.
+    state.pointer.down=!pinching;
+    if (!pinching && !state.paused) {
+      startExperience();
+      if (state.mode==="paint") emitAt(x,y,state.pointer.vx,state.pointer.vy);
+      else applyForce(x,y,state.mode==="attract"?"attract":"repel",1);
+    }
+  }
+  function disableCamera() {
+    state.cameraOn=false; state.handActive=false; state.pointer.down=false;
+    try { cameraLoop?.stop(); } catch(e) {}
+    cameraLoop=null;
+    if (cameraStream) { cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; }
+    if (video) video.srcObject=null;
+    camPreview.classList.remove("visible");
+    const button=document.getElementById("cameraBtn");
+    if (button) button.textContent="Enable hand tracking";
+    statusEl.textContent=state.started?"SIMULATION ACTIVE":"SIMULATION READY";
+  }
+  document.getElementById("cameraBtn").addEventListener("click",enableCamera);
+  window.addEventListener("beforeunload",disableCamera);
+
+  // Initial transparent canvas so the atmospheric CSS background stays visible.
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+})();
+</script>
+</body>
+</html>
