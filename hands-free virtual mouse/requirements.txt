@@ -1,0 +1,8 @@
+# Python 3.10 - 3.12 recommended (MediaPipe wheels).
+# Note: mediapipe already depends on opencv-contrib-python (provides `cv2`),
+# so opencv-python is intentionally NOT listed to avoid a duplicate install.
+mediapipe==0.10.14
+numpy
+PyAutoGUI>=0.9.54
+sounddevice>=0.4.6
+ 
