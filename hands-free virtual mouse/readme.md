@@ -26,13 +26,13 @@ The blue rectangle in the preview is the active area; the cursor reaches the scr
 
 ## Setup
 
-Python 3.10 - 3.12 is recommended (MediaPipe wheels).
+Python 3.10 - 3.12 is required (MediaPipe wheels with `mp.solutions` support; use `mediapipe==0.10.14`).
 
 ### macOS (Terminal)
 
 ```bash
-cd gesture-mouse
-python3 -m venv .venv
+cd "hands-free virtual mouse"
+python3.12 -m venv .venv   # or python3 -m venv .venv if python3 is 3.10-3.12
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -59,7 +59,7 @@ python main.py --check
 ### Windows (PowerShell)
 
 ```powershell
-cd gesture-mouse
+cd "hands-free virtual mouse"
 py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -121,6 +121,7 @@ normal speech and typing should stay below it.
 | Clicks misfire | Raise `ARM_DELAY` or lower `PINCH_ON` at the top of `main.py` |
 | Scroll too fast/slow | Change `SCROLL_GAIN` at the top of `main.py` |
 | `pip install mediapipe` fails | Use Python 3.10 - 3.12 (not 3.13+) |
+| `module 'mediapipe' has no attribute 'solutions'` | Newer versions removed `mp.solutions`. Run `pip install "mediapipe==0.10.14"` |
 
 All tunables are constants at the top of `main.py`.
 
